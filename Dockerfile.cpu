@@ -1,10 +1,10 @@
-FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
+FROM ubuntu:16.04
 LABEL maintainer="Ivan Koryakovskiy <i.koryakovskiy@tudelft.nl>"
 
 COPY keyboard /etc/default
 
 # use tud mirrors for ubuntu
-RUN sed -i 's|archive.ubuntu.com/ubuntu/|ftp.tudelft.nl/archive.ubuntu.com/|g' /etc/apt/sources.list
+#RUN sed -i 's|archive.ubuntu.com/ubuntu/|ftp.tudelft.nl/archive.ubuntu.com/|g' /etc/apt/sources.list
 
 # Pick up dependencies
 RUN apt-get update --no-install-recommends \
@@ -47,7 +47,16 @@ RUN apt-get update --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* 
 
 RUN pip3 --no-cache-dir install \
-    gym 
+    gym \
+    scipy \
+    tqdm \
+    joblib \
+    zmq \
+    dill \
+    tensorflow >= 1.0.0 \
+    azure==1.0.3 \
+    progressbar2 \
+    mpi4py
 
 # Install OpenAI Gym
 #RUN git clone https://github.com/openai/gym.git \
