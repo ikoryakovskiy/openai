@@ -1,4 +1,4 @@
 #!/bin/bash
 
-docker run -it --rm -v /etc/group:/etc/group:ro -v /etc/passwd:/etc/passwd:ro -u $(id -u $USER):$(id -g $USER) -v /home/ivan/work/Project/Software/grl:/grl -v /home/ivan/work/Project/Software/openai:/openai dbl/opeenai_cpu:latest /bin/bash
+docker run -it --rm -v /etc/group:/etc/group:ro -v /etc/passwd:/etc/passwd:ro -u $(id -u $USER):$(id -g $USER) -v /home/ivan/work/Project/Software/grl:/grl -v /home/ivan/work/Project/Software/openai:/openai dbl/openai_cpu:latest /bin/bash
 
