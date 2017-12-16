@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker build -f Dockerfile_gpu -t dbl/baselines_gpu .
