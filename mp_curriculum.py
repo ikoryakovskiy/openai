@@ -57,7 +57,8 @@ def main():
               ]
     L2 = rl_run_zero_shot(args, configs, options)
 
-    L = random.shuffle(L1+L2)
+    L = L1+L2
+    random.shuffle(L)
     do_multiprocessing_pool(args, L)
 
 
