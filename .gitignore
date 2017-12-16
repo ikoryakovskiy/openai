@@ -25,6 +25,7 @@
 *.data-*
 *.txt
 *.tar.bz2
+checkpoint
 
 # Compiled Static libraries
 *.lai
@@ -45,3 +46,4 @@
 
 # Temporary
 *~
+tmp/

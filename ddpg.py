@@ -124,12 +124,12 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-
+    '''
     # Learn
     args['cfg'] = 'cfg/rbdl_py_balancing.yaml'
     args['nb_epochs'] = 5
     args['output'] = 'rbdl_py_balancing'
-    
+    '''
     '''
     # Play
     args['cfg'] = 'cfg/rbdl_py_balancing_play.yaml'
