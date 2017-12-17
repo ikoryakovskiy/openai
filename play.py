@@ -5,15 +5,19 @@ Created on Fri Dec 15 14:14:17 2017
 
 @author: ivan
 """
-import os
+from ddpg import parse_args, run
 
-cfg = 'cfg/rbdl_py_balancing_play.yaml'
-nb_epochs = 1
-nb_epoch_cycles = 0
-nb_rollout_steps = 0
-output = ''
-load_file = 'rbdl_py_balancing'
+args = parse_args()
 
-args = '--cfg={} --nb-epochs={} --nb-epoch-cycles={} --nb-rollout-steps={} --output={} --load-file={}'.format(
-    cfg, nb_epochs, nb_epoch_cycles, nb_rollout_steps, output, load_file)
-os.system('python3 ddpg.py %s' % args)
+args['cfg'] = 'cfg/rbdl_py_balancing.yaml'
+args['eval_cfg'] = 'cfg/rbdl_py_balancing_play.yaml'
+args['nb_timesteps'] = None
+args['nb_trials'] = 1
+args['test_interval'] = 0
+args['noise_type'] = 'ou_0.15_0.20'
+args['normalize_observations'] = False
+args['load_file'] = 'rbdl_py_balancing'
+args['output'] = 'rbdl_py_balancing_play'
+
+# Run actual script.
+run(**args)

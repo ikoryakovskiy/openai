@@ -5,6 +5,7 @@ import time
 import os
 import numpy as np
 import logging
+import yaml
 from baselines import logger, bench
 from baselines.common.misc_util import (
     set_global_seeds,
@@ -20,7 +21,11 @@ import gym
 import tensorflow as tf
 from mpi4py import MPI
 
-def run(cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
+def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        logger.configure(dir_path, ['stdout'])
+        
     # Configure things.
     rank = MPI.COMM_WORLD.Get_rank()
     if rank != 0:
@@ -31,7 +36,7 @@ def run(cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
     gym.logger.setLevel(logging.WARN)
 
     if evaluation and rank==0:
-        eval_env = GRLEnv(cfg, test = 1)
+        eval_env = GRLEnv(eval_cfg, test = 1)
         output = kwargs.get('output',"default")
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), output))
     else:
@@ -53,8 +58,10 @@ def run(cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
             _, stddev = current_noise_type.split('_')
             action_noise = NormalActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
         elif 'ou' in current_noise_type:
-            _, stddev = current_noise_type.split('_')
-            action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
+            _, stddev, theta = current_noise_type.split('_')
+            action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(nb_actions), dt=0.03,
+                                                        sigma=float(stddev) * np.ones(nb_actions), 
+                                                        theta=float(theta) * np.ones(nb_actions))
         else:
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
 
@@ -88,6 +95,8 @@ def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
+    parser.add_argument('--eval-cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
+    parser.add_argument('--tau', type=float, default=0.001)
     boolean_flag(parser, 'render-eval', default=False)
     boolean_flag(parser, 'layer-norm', default=True)
     boolean_flag(parser, 'render', default=False)
@@ -102,47 +111,21 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--reward-scale', type=float, default=1.)
     parser.add_argument('--clip-norm', type=float, default=None)
-    parser.add_argument('--nb-epochs', type=int, default=500)  # with default settings, perform 1M steps total
-    parser.add_argument('--nb-epoch-cycles', type=int, default=20)
-    parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-eval-steps', type=int, default=500)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-trials', type=int, default=None)
+    parser.add_argument('--nb-train-steps', type=int, default=1)  # per epoch cycle and MPI worker
+    parser.add_argument('--test-interval', type=int, default=10)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
-    parser.add_argument('--num-timesteps', type=int, default=None)
+    parser.add_argument('--nb-timesteps', type=int, default=1000)
     boolean_flag(parser, 'evaluation', default=True)
     parser.add_argument('--output', type=str, default='')
     parser.add_argument('--load-file', type=str, default='')
     args = parser.parse_args()
-    # we don't directly specify timesteps for this script, so make sure that if we do specify them
-    # they agree with the other parameters
-    if args.num_timesteps is not None:
-        assert(args.num_timesteps == args.nb_epochs * args.nb_epoch_cycles * args.nb_rollout_steps)
     dict_args = vars(args)
-    del dict_args['num_timesteps']
     return dict_args
 
 
 if __name__ == '__main__':
     args = parse_args()
-    '''
-    # Learn
-    args['cfg'] = 'cfg/rbdl_py_balancing.yaml'
-    args['nb_epochs'] = 5
-    args['output'] = 'rbdl_py_balancing'
-    '''
-    '''
-    # Play
-    args['cfg'] = 'cfg/rbdl_py_balancing_play.yaml'
-    args['nb_epochs'] = 1
-    args['nb_epoch_cycles'] = 0
-    args['nb_rollout_steps'] = 0
-    args['output'] = ''
-    args['load_file'] = 'rbdl_py_balancing'
-    '''
     
-    print(args)
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        logger.configure(dir_path, ['stdout'])
     # Run actual script.
     run(**args)

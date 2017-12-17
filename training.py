@@ -13,10 +13,10 @@ import tensorflow as tf
 from mpi4py import MPI
 
 
-def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
+def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    output, load_file, tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    popart, gamma, clip_norm, nb_train_steps, test_interval, batch_size, memory, output, load_file,
+    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -36,154 +36,163 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     else:
         saver = None
             
-    eval_episode_rewards_history = deque(maxlen=100)
-    episode_rewards_history = deque(maxlen=100)
+    trial_return_history = deque(maxlen=100)
+    eval_trial_return_history = deque(maxlen=100)
     with U.single_threaded_session() as sess:
         # Prepare everything.
         agent.initialize(sess)
         sess.graph.finalize()
 
-        agent.reset()
-        obs = env.reset()
-        done = False
-        episode_reward = 0.
-        episode_step = 0
-        episodes = 0
-        t = 0
+        trial = 0
+        ts = 0
 
         if load_file != '':
           saver.restore(sess, load_file)
 
-        epoch = 0
         start_time = time.time()
 
-        epoch_episode_rewards = []
-        epoch_episode_steps = []
-        epoch_actions = []
-        epoch_qs = []
-        epoch_episodes = 0
-        for epoch in range(nb_epochs):
-            for cycle in range(nb_epoch_cycles):
-                # Perform rollouts.
-                for t_rollout in range(nb_rollout_steps):
+        trial_returns = []
+        trial_steps = []
+        actions = []
+        qs = []
+        train_actor_losses = []
+        train_critic_losses = []
+        train_adaptive_distances = []
+
+        while True:
+            test = (test_interval >= 0 and trial%(test_interval+1) == test_interval)
+            
+            if not test:
+                # Perform rollout.
+                obs = env.reset()
+                agent.reset()
+                done = 0
+                trial_return = 0.
+                trial_step = 0
+                while done == 0:
                     # Predict next action.
                     action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
                     assert action.shape == env.action_space.shape
-
+    
                     # Execute next action.
                     if rank == 0 and render:
                         env.render()
                     assert max_action.shape == action.shape
                     new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                    t += 1
+                    ts += 1
                     if rank == 0 and render:
                         env.render()
-                    episode_reward += r
-                    episode_step += 1
-
-                    # Book-keeping.
-                    epoch_actions.append(action)
-                    epoch_qs.append(q)
-                    agent.store_transition(obs, action, r, new_obs, done)
-                    obs = new_obs
-
-                    if done:
-                        # Episode done.
-                        epoch_episode_rewards.append(episode_reward)
-                        episode_rewards_history.append(episode_reward)
-                        epoch_episode_steps.append(episode_step)
-                        episode_reward = 0.
-                        episode_step = 0
-                        epoch_episodes += 1
-                        episodes += 1
-
-                        agent.reset()
-                        obs = env.reset()
-
-                # Train.
-                epoch_actor_losses = []
-                epoch_critic_losses = []
-                epoch_adaptive_distances = []
-                for t_train in range(nb_train_steps):
-                    # Adapt param noise, if necessary.
-                    if memory.nb_entries >= batch_size and t % param_noise_adaption_interval == 0:
-                        distance = agent.adapt_param_noise()
-                        epoch_adaptive_distances.append(distance)
-
-                    cl, al = agent.train()
-                    epoch_critic_losses.append(cl)
-                    epoch_actor_losses.append(al)
-                    agent.update_target_net()
-
-            # Evaluate.
-            eval_episode_return = 0.
-            eval_episode_steps = 0
-            eval_qs = []
-            if eval_env is not None:
-                eval_obs = eval_env.reset()
-                for t_rollout in range(nb_eval_steps):
-                    eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
-                    eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                    if render_eval:
-                        eval_env.render()
-                    eval_episode_return += eval_r
-                    eval_episode_steps += 1
-
-                    eval_qs.append(eval_q)
-                    if eval_done:
-                        eval_episode_rewards_history.append(eval_episode_return)
-                        break
-
-            # Log stats.
-            duration = time.time() - start_time
-            combined_stats = {}
-            if nb_epoch_cycles and nb_rollout_steps:
-                # Print only if learing was happaning
-                stats = agent.get_stats()
-                for key in sorted(stats.keys()):
-                    combined_stats[key] = mpi_mean(stats[key])
+                    trial_return += r
+                    trial_step += 1
     
-                # Rollout statistics.
-                combined_stats['rollout/return'] = mpi_mean(epoch_episode_rewards)
-                combined_stats['rollout/return_history'] = mpi_mean(np.mean(episode_rewards_history))
-                combined_stats['rollout/episode_steps'] = mpi_mean(epoch_episode_steps)
-                combined_stats['rollout/episodes'] = mpi_sum(epoch_episodes)
-                combined_stats['rollout/actions_mean'] = mpi_mean(epoch_actions)
-                combined_stats['rollout/actions_std'] = mpi_std(epoch_actions)
-                combined_stats['rollout/Q_mean'] = mpi_mean(epoch_qs)
+                    # Book-keeping.
+                    actions.append(action)
+                    qs.append(q)
+                    agent.store_transition(obs, action, r, new_obs, done == 2) # terminal indicator is 2
+                    obs = new_obs
+    
+                    # Train.
+                    if memory.nb_entries >= batch_size:
+                        for t_train in range(nb_train_steps):
+                            # Adapt param noise, if necessary.
+                            if trial % param_noise_adaption_interval == 0:
+                                distance = agent.adapt_param_noise()
+                                train_adaptive_distances.append(distance)
+          
+                            cl, al = agent.train()
+                            train_critic_losses.append(cl)
+                            train_actor_losses.append(al)
+                            agent.update_target_net()
+
+                # Episode done.
+                trial_steps.append(trial_step)
+                trial_returns.append(trial_return)
+                trial_return_history.append(trial_return)
+
+            else:
+                # Evaluate.
+                eval_trial_return = 0.
+                eval_trial_steps = 0
+                if eval_env is not None:
+                    eval_obs = eval_env.reset()
+                    agent.reset()
+                    eval_done = 0
+                    while eval_done == 0:
+                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                        if render_eval:
+                            eval_env.render()
+                        eval_trial_return += eval_r
+                        eval_trial_steps += 1
+                    # Episode done.
+                    eval_trial_return_history.append(eval_trial_return)
         
-                # Train statistics.
-                combined_stats['train/loss_actor'] = mpi_mean(epoch_actor_losses)
-                combined_stats['train/loss_critic'] = mpi_mean(epoch_critic_losses)
-                combined_stats['train/param_noise_distance'] = mpi_mean(epoch_adaptive_distances)
-
-            # Evaluation statistics.
-            if eval_env is not None:
-                combined_stats['eval/return'] = eval_episode_return
-                combined_stats['eval/return_history'] = mpi_mean(np.mean(eval_episode_rewards_history))
-                combined_stats['eval/Q'] = mpi_mean(eval_qs)
-                combined_stats['eval/steps'] = eval_episode_steps
-
-            # Total statistics.
-            combined_stats['total/duration'] = mpi_mean(duration)
-            combined_stats['total/steps_per_second'] = mpi_mean(float(t) / float(duration))
-            combined_stats['total/episodes'] = mpi_mean(episodes)
-            combined_stats['total/epochs'] = epoch + 1
-            combined_stats['total/steps'] = t
+                # Log stats.
+                duration = time.time() - start_time
+                combined_stats = {}
+                if memory.nb_entries > 0:
+                    # Print only if learing was happaning
+                    stats = agent.get_stats()
+                    for key in sorted(stats.keys()):
+                        combined_stats[key] = mpi_mean(stats[key])
+        
+                    # Rollout statistics.
+                    combined_stats['rollout/Q_mean'] = mpi_mean(qs)
+                    combined_stats['rollout/actions_mean'] = mpi_mean(actions)
+                    combined_stats['rollout/actions_std'] = mpi_std(actions)
+                    combined_stats['rollout/trial_steps'] = mpi_mean(trial_steps)
+                    combined_stats['rollout/return'] = mpi_mean(trial_returns)
+                    combined_stats['rollout/return_history'] = mpi_mean(trial_return_history)
             
-            for key in sorted(combined_stats.keys()):
-                logger.record_tabular(key, combined_stats[key])
-            logger.dump_tabular()
-            logger.info('')
-            logdir = logger.get_dir()
-            if rank == 0 and logdir:
-                if hasattr(env, 'get_state'):
-                    with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
-                        pickle.dump(env.get_state(), f)
-                if eval_env and hasattr(eval_env, 'get_state'):
-                    with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
-                        pickle.dump(eval_env.get_state(), f)
-
+                    # Train statistics.
+                    combined_stats['train/loss_actor'] = mpi_mean(train_actor_losses)
+                    combined_stats['train/loss_critic'] = mpi_mean(train_critic_losses)
+                    combined_stats['train/param_noise_distance'] = mpi_mean(train_adaptive_distances)
+        
+                # Evaluation statistics.
+                if eval_env is not None:
+                    combined_stats['eval/Q'] = mpi_mean(eval_q)
+                    combined_stats['eval/return'] = eval_trial_return
+                    combined_stats['eval/return_history'] = mpi_mean(eval_trial_return_history)
+                    combined_stats['eval/steps'] = eval_trial_steps
+        
+                # Total statistics.
+                combined_stats['total/duration'] = mpi_mean(duration)
+                combined_stats['total/steps_per_second'] = mpi_mean(float(ts) / float(duration))
+                combined_stats['total/trials'] = trial
+                combined_stats['total/steps'] = ts
+                       
+                for key in sorted(combined_stats.keys()):
+                    logger.record_tabular(key, combined_stats[key])
+                logger.dump_tabular()
+                logger.info('')
+                logdir = logger.get_dir()
+                if rank == 0 and logdir:
+                    if hasattr(env, 'get_state'):
+                        with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
+                            pickle.dump(env.get_state(), f)
+                    if eval_env and hasattr(eval_env, 'get_state'):
+                        with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
+                            pickle.dump(eval_env.get_state(), f)
+                            
+                # Reset statistics.
+                trial_returns = []
+                trial_steps = []
+                actions = []
+                qs = []
+                train_actor_losses = []
+                train_critic_losses = []
+                train_adaptive_distances = []
+                # End of evaluate and log statistics
+                
+            # Check if this is the last trial
+            trial += 1
+            if nb_trials and trial >= nb_trials:
+                break
+            if nb_timesteps and ts >= nb_timesteps:
+                break
+        '''        
         # Saving policy and value function
         if saver and output != '':
             saver.save(sess, './%s' % output)
+        '''
