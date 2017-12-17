@@ -5,7 +5,6 @@ import time
 import os
 import numpy as np
 import logging
-import yaml
 from baselines import logger, bench
 from baselines.common.misc_util import (
     set_global_seeds,
@@ -94,6 +93,7 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    parser.add_argument('--cores', type=int, default=1)
     parser.add_argument('--cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
     parser.add_argument('--eval-cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
     parser.add_argument('--tau', type=float, default=0.001)

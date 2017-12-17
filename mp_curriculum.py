@@ -24,18 +24,13 @@ def flatten(x):
         return [x]
 
 def main():
-    # parse arguments
-    parser = argparse.ArgumentParser(description="Parser")
-    parser.add_argument('-c', '--cores', type=int, help='specify maximum number of cores')
-    args = parser.parse_args()
-    if args.cores:
-        args.cores = min(multiprocessing.cpu_count(), args.cores)
-    else:
-        args.cores = min(multiprocessing.cpu_count(), 32)
-    print('Using {} cores.'.format(args.cores))
-
-    #
     ddpg_args = parse_args()
+    
+    if ddpg_args['cores']:
+        arg_cores = min(multiprocessing.cpu_count(), ddpg_args['cores'])
+    else:
+        arg_cores = min(multiprocessing.cpu_count(), 32)
+    print('Using {} cores.'.format(arg_cores))
     
     # Parameters
     runs = range(5)
@@ -56,7 +51,7 @@ def main():
     configs = [
                 "cfg/rbdl_py_balancing.yaml",
               ]
-    L1 = rl_run_zero_shot(args, configs, ddpg_args, options)
+    L1 = rl_run_zero_shot(configs, ddpg_args, options)
 
 
     ###
@@ -69,15 +64,15 @@ def main():
     configs = [
                 "cfg/rbdl_py_walking.yaml",
               ]
-    L2 = rl_run_zero_shot(args, configs, ddpg_args, options)
+    L2 = rl_run_zero_shot(configs, ddpg_args, options)
 
     L = L1+L2
     random.shuffle(L)
-    do_multiprocessing_pool(args, L)
+    do_multiprocessing_pool(arg_cores, L)
 
 
 ######################################################################################
-def rl_run_zero_shot(args, list_of_cfgs, ddpg_args, options):
+def rl_run_zero_shot(list_of_cfgs, ddpg_args, options):
     list_of_new_cfgs = []
 
     loc = "tmp"
@@ -147,13 +142,13 @@ def init(cnt, num):
 
 
 ######################################################################################
-def do_multiprocessing_pool(args, list_of_new_cfgs):
+def do_multiprocessing_pool(arg_cores, list_of_new_cfgs):
     """Do multiprocesing"""
     counter = multiprocessing.Value('i', 0)
-    cores = multiprocessing.Value('i', args.cores)
+    cores = multiprocessing.Value('i', arg_cores)
     print('cores {0}'.format(cores.value))
     original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-    pool = multiprocessing.Pool(args.cores, initializer = init, initargs = (counter, cores))
+    pool = multiprocessing.Pool(arg_cores, initializer = init, initargs = (counter, cores))
     signal.signal(signal.SIGINT, original_sigint_handler)
     try:
         pool.map(mp_run, list_of_new_cfgs)
