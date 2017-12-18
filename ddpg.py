@@ -6,12 +6,13 @@ import os
 import yaml
 import numpy as np
 import logging
-from baselines import logger, bench
+from my_monitor import MyMonitor
+from baselines import logger
 from baselines.common.misc_util import (
     set_global_seeds,
     boolean_flag,
 )
-#import baselines.ddpg.training as training
+
 import training
 from baselines.ddpg.models import Actor, Critic
 from baselines.ddpg.memory import Memory
@@ -37,16 +38,10 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, *
         logger.set_level(logger.DISABLED)
 
     # Create envs.
-    env = GRLEnv(cfg, test = 0)
+    env = GRLEnv(cfg)
     gym.logger.setLevel(logging.WARN)
-
-    if evaluation and rank==0:
-        eval_env = GRLEnv(eval_cfg, test = 1)
-        output = kwargs.get('output',"default")
-        eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), output))
-    else:
-        eval_env = None
-        env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
+    output = kwargs.get('output',"default")
+    env = MyMonitor(env, os.path.join(logger.get_dir(), output))
 
     # Parse noise_type
     action_noise = None
@@ -82,17 +77,13 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, *
     tf.reset_default_graph()
     set_global_seeds(seed)
     env.seed(seed)
-    if eval_env is not None:
-        eval_env.seed(seed)
 
     # Disable logging for rank != 0 to avoid noise.
     if rank == 0:
         start_time = time.time()
-    training.train(env=env, eval_env=eval_env, param_noise=param_noise,
-        action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
+    training.train(env=env, param_noise=param_noise, action_noise=action_noise,
+                   actor=actor, critic=critic, memory=memory, **kwargs)
     env.close()
-    if eval_env is not None:
-        eval_env.close()
     if rank == 0:
         logger.info('total runtime: {}s'.format(time.time() - start_time))
 

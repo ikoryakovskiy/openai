@@ -5,7 +5,6 @@ import os.path
 from time import sleep
 from datetime import datetime
 import collections
-import argparse
 import itertools
 import signal
 import random
@@ -95,6 +94,7 @@ def rl_run_zero_shot(list_of_cfgs, ddpg_args, options):
 
             ddpg_args['cfg'] = cfg
             ddpg_args['eval_cfg'] = cfg
+            ddpg_args['layers_shape'] = '400, 300'
             ddpg_args['nb_timesteps'] = o[0]*1000
             ddpg_args['test_interval'] = 30
             if o[1] == 0:

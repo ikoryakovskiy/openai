@@ -16,7 +16,7 @@ from mpi4py import MPI
 def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, test_interval, batch_size, memory, output, load_file,
-    save=False, tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    save=False, tau=0.01, evaluation=False, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -64,6 +64,7 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
             
             if not test:
                 # Perform rollout.
+                env.set_role(test=False)
                 obs = env.reset()
                 agent.reset()
                 done = 0
@@ -113,15 +114,16 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
                 # Evaluate.
                 eval_trial_return = 0.
                 eval_trial_steps = 0
-                if eval_env is not None:
-                    eval_obs = eval_env.reset()
+                if evaluation is not None:
+                    env.set_role(test=True)
+                    eval_obs = env.reset()
                     agent.reset()
                     eval_done = 0
                     while eval_done == 0:
                         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
-                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                        eval_obs, eval_r, eval_done, eval_info = env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         if render_eval:
-                            eval_env.render()
+                            env.render()
                         eval_trial_return += eval_r
                         eval_trial_steps += 1
                     # Episode done.
@@ -150,7 +152,7 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
                     combined_stats['train/param_noise_distance'] = mpi_mean(train_adaptive_distances)
         
                 # Evaluation statistics.
-                if eval_env is not None:
+                if evaluation is not None:
                     combined_stats['eval/Q'] = mpi_mean(eval_q)
                     combined_stats['eval/return'] = eval_trial_return
                     combined_stats['eval/return_history'] = mpi_mean(eval_trial_return_history)
@@ -171,9 +173,9 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
                     if hasattr(env, 'get_state'):
                         with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
                             pickle.dump(env.get_state(), f)
-                    if eval_env and hasattr(eval_env, 'get_state'):
+                    if evaluation and hasattr(env, 'get_state'):
                         with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
-                            pickle.dump(eval_env.get_state(), f)
+                            pickle.dump(env.get_state(), f)
                             
                 # Reset statistics.
                 trial_returns = []

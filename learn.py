@@ -9,8 +9,8 @@ from ddpg import parse_args, run
 
 args = parse_args()
 
-task = 'walking'
-#task = 'balancing'
+#task = 'walking'
+task = 'balancing'
 
 args['cfg'] = 'cfg/rbdl_py_{}.yaml'.format(task)
 args['eval_cfg'] = 'cfg/rbdl_py_{}.yaml'.format(task)
