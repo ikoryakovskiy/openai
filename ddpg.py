@@ -14,7 +14,7 @@ from baselines.common.misc_util import (
 )
 
 import training
-from baselines.ddpg.models import Actor, Critic
+from my_ddpg_models import MyActor, MyCritic
 from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import AdaptiveParamNoiseSpec, NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
@@ -68,8 +68,8 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, *
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
     layers_shape = [int(s) for s in layers_shape.split(',')]
-    critic = Critic(layer_norm=layer_norm, layers_shape=layers_shape)
-    actor = Actor(nb_actions, layer_norm=layer_norm, layers_shape=layers_shape)
+    critic = MyCritic(layer_norm=layer_norm, layers_shape=layers_shape)
+    actor = MyActor(nb_actions, layer_norm=layer_norm, layers_shape=layers_shape)
 
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
