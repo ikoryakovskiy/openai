@@ -3,6 +3,7 @@ from grlgym.envs.grl import GRLEnv
 import argparse
 import time
 import os
+import yaml
 import numpy as np
 import logging
 from baselines import logger, bench
@@ -20,7 +21,12 @@ import gym
 import tensorflow as tf
 from mpi4py import MPI
 
-def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
+def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, **kwargs):
+    
+    with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
+        yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
+    del kwargs['cores']
+    
     if MPI.COMM_WORLD.Get_rank() == 0:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         logger.configure(dir_path, ['stdout'])
@@ -66,8 +72,9 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, **kwargs):
 
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    critic = Critic(layer_norm=layer_norm)
-    actor = Actor(nb_actions, layer_norm=layer_norm)
+    layers_shape = [int(s) for s in layers_shape.split(',')]
+    critic = Critic(layer_norm=layer_norm, layers_shape=layers_shape)
+    actor = Actor(nb_actions, layer_norm=layer_norm, layers_shape=layers_shape)
 
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
@@ -96,6 +103,7 @@ def parse_args():
     parser.add_argument('--cores', type=int, default=1)
     parser.add_argument('--cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
     parser.add_argument('--eval-cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
+    parser.add_argument('--layers-shape', type=str, default='64, 64')
     parser.add_argument('--tau', type=float, default=0.001)
     boolean_flag(parser, 'render-eval', default=False)
     boolean_flag(parser, 'layer-norm', default=True)
@@ -119,6 +127,7 @@ def parse_args():
     boolean_flag(parser, 'evaluation', default=True)
     parser.add_argument('--output', type=str, default='')
     parser.add_argument('--load-file', type=str, default='')
+    parser.add_argument('--save', type=bool, default=False)
     args = parser.parse_args()
     dict_args = vars(args)
     return dict_args

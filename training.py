@@ -4,7 +4,7 @@ from collections import deque
 import pickle
 
 from baselines.ddpg.ddpg import DDPG
-from baselines.ddpg.util import mpi_mean, mpi_std, mpi_max, mpi_sum
+from baselines.ddpg.util import mpi_mean, mpi_std #, mpi_max, mpi_sum
 import baselines.common.tf_util as U
 
 from baselines import logger
@@ -16,7 +16,7 @@ from mpi4py import MPI
 def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, test_interval, batch_size, memory, output, load_file,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    save=False, tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -191,8 +191,8 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
                 break
             if nb_timesteps and ts >= nb_timesteps:
                 break
-        '''        
+               
         # Saving policy and value function
-        if saver and output != '':
+        if save and saver and output != '':
             saver.save(sess, './%s' % output)
-        '''
+        

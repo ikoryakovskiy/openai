@@ -56,12 +56,15 @@ RUN pip3 --no-cache-dir install \
         joblib \
         zmq \
         dill \
-        tensorflow \
+        tensorflow-gpu \
         azure \
         progressbar2 \
         mpi4py \
         tflearn \
         pyyaml
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 # Install OpenAI Gym
 #RUN git clone https://github.com/openai/gym.git \
