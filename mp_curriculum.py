@@ -38,40 +38,42 @@ def main():
     normalize_returns = [1, 0]
     layer_norm = [1, 0]
     tau = [0.001]#, 0.01]
+    architecture = [0] # 0: 'Divyam'
 
+    alg = 'ddpg'
     
     ###
     nb_timesteps = [100]
     options = []
     for r in itertools.product(nb_timesteps, noise_type, normalize_observations, 
-                               normalize_returns, layer_norm, tau, runs): options.append(r)
+                               normalize_returns, layer_norm, tau, architecture, runs): options.append(r)
     options = [flatten(tupl) for tupl in options]
 
     configs = [
                 "cfg/rbdl_py_balancing.yaml",
               ]
-    L1 = rl_run_zero_shot(configs, ddpg_args, options)
+    L1 = rl_run_zero_shot(configs, alg, ddpg_args, options)
 
 
     ###
     nb_timesteps = [300]
     options = []
     for r in itertools.product(nb_timesteps, noise_type, normalize_observations, 
-                               normalize_returns, layer_norm, tau, runs): options.append(r)
+                               normalize_returns, layer_norm, tau, architecture, runs): options.append(r)
     options = [flatten(tupl) for tupl in options]
 
     configs = [
                 "cfg/rbdl_py_walking.yaml",
               ]
-    L2 = rl_run_zero_shot(configs, ddpg_args, options)
+    L2 = rl_run_zero_shot(configs, alg, ddpg_args, options)
 
     L = L1+L2
     random.shuffle(L)
-    do_multiprocessing_pool(arg_cores, L)
+    #do_multiprocessing_pool(arg_cores, L)
 
 
 ######################################################################################
-def rl_run_zero_shot(list_of_cfgs, ddpg_args, options):
+def rl_run_zero_shot(list_of_cfgs, alg, ddpg_args, options):
     list_of_new_cfgs = []
 
     loc = "tmp"
@@ -90,23 +92,35 @@ def rl_run_zero_shot(list_of_cfgs, ddpg_args, options):
             print("Generating parameters: {}".format(str_o))
 
             # create local filename
-            list_of_new_cfgs.append( "{}/{}-{}.yaml".format(loc, fname, str_o) )
+            list_of_new_cfgs.append( "{}/{}-{}-{}.yaml".format(loc, alg, fname, str_o) )
 
             ddpg_args['cfg'] = cfg
             ddpg_args['eval_cfg'] = cfg
-            ddpg_args['layers_shape'] = '400, 300'
+            
             ddpg_args['nb_timesteps'] = o[0]*1000
             ddpg_args['test_interval'] = 30
             if o[1] == 0:
                 ddpg_args['noise_type'] = 'ou_0.15_0.20'
-            else:
+            elif o[1] == 1:
                 ddpg_args['noise_type'] = 'adaptive-param_0.2'
+            else:
+                raise ValueError('Unknown noise_type specified: %s' % o[1])
+                
             ddpg_args['normalize_observations'] = (o[2] == 1)
             ddpg_args['normalize_returns'] = (o[3] == 1)
             ddpg_args['layer_norm'] = (o[4] == 1)
             ddpg_args['tau'] = o[5]
-            ddpg_args['output'] = "{}-{}".format(fname, str_o)
+            ddpg_args['output'] = "{}-{}-{}".format(alg, fname, str_o)
             
+            if o[6] == 0:
+                ddpg_args['architecture'] = 'Divyam'
+            elif o[6] == 1:
+                ddpg_args['architecture'] = '64x64'
+            elif o[6] == 2:
+                ddpg_args['architecture'] = '400x300'
+            else:
+                raise ValueError('Unknown architecture specified: %s' % o[6])
+                
             with io.open(list_of_new_cfgs[-1], 'w', encoding='utf8') as file:
                 yaml.dump(ddpg_args, file, default_flow_style=False, allow_unicode=True)
 

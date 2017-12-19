@@ -22,9 +22,10 @@ import gym
 import tensorflow as tf
 from mpi4py import MPI
 
-def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, **kwargs):
+def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, architecture, **kwargs):
     
-    with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
+    output = kwargs.get('output',"default")
+    with open("{}.yaml".format(output), 'w', encoding='utf8') as file:
         yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
     del kwargs['cores']
     
@@ -40,7 +41,6 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, *
     # Create envs.
     env = GRLEnv(cfg)
     gym.logger.setLevel(logging.WARN)
-    output = kwargs.get('output',"default")
     env = MyMonitor(env, os.path.join(logger.get_dir(), output))
 
     # Parse noise_type
@@ -67,9 +67,8 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, layers_shape, *
 
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    layers_shape = [int(s) for s in layers_shape.split(',')]
-    critic = MyCritic(layer_norm=layer_norm, layers_shape=layers_shape)
-    actor = MyActor(nb_actions, layer_norm=layer_norm, layers_shape=layers_shape)
+    critic = MyCritic(layer_norm=layer_norm, architecture=architecture)
+    actor = MyActor(nb_actions, layer_norm=layer_norm, architecture=architecture)
 
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
@@ -94,7 +93,7 @@ def parse_args():
     parser.add_argument('--cores', type=int, default=1)
     parser.add_argument('--cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
     parser.add_argument('--eval-cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
-    parser.add_argument('--layers-shape', type=str, default='64, 64')
+    parser.add_argument('--architecture', type=str, default='Divyam')
     parser.add_argument('--tau', type=float, default=0.001)
     boolean_flag(parser, 'render-eval', default=False)
     boolean_flag(parser, 'layer-norm', default=True)

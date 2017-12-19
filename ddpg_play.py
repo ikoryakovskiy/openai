@@ -14,7 +14,7 @@ task = 'walking'
 
 args['cfg'] = 'cfg/rbdl_py_{}.yaml'.format(task)
 args['eval_cfg'] = 'cfg/rbdl_py_{}_play.yaml'.format(task)
-args['layers_shape'] = '400, 300'
+args['layers_shape'] = 'Divyam'
 args['nb_timesteps'] = None
 args['nb_trials'] = 1
 args['test_interval'] = 0
