@@ -13,7 +13,7 @@ import tensorflow as tf
 from mpi4py import MPI
 
 
-def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param_noise, actor, critic,
+def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, test_interval, batch_size, memory, output, load_file,
     save=False, tau=0.01, evaluation=False, param_noise_adaption_interval=50):
@@ -65,7 +65,7 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
             
             if not test:
                 # Perform rollout.
-                env.set_role(test=False)
+                env.set_test(test=False)
                 obs = env.reset()
                 agent.reset()
                 done = 0
@@ -192,7 +192,7 @@ def train(env, nb_timesteps, nb_trials, render_eval, reward_scale, render, param
             trial += 1
             if nb_trials and trial >= nb_trials:
                 break
-            if nb_timesteps and ts >= nb_timesteps:
+            if num_timesteps and ts >= num_timesteps:
                 break
                
         # Saving policy and value function

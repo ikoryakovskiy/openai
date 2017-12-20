@@ -7,7 +7,7 @@ import json
 from baselines.bench import Monitor
 
 class MyMonitor(Monitor):
-    def __init__(self, env, filename, allow_early_resets=False, reset_keywords=()):  
+    def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), report='test'):  
         Wrapper.__init__(self, env=env)
         self.tstart = time.time()
         if filename is None:
@@ -34,6 +34,8 @@ class MyMonitor(Monitor):
         self.total_steps = 0
         self.current_reset_info = {} # extra info about the current episode, that was passed in during reset()
         self.test = False
+        self.report = report
+        env.report(report)
 
     def _step(self, action):
         if self.needs_reset:
@@ -45,10 +47,12 @@ class MyMonitor(Monitor):
             self.needs_reset = True
             eprew = sum(self.rewards)
             eplen = len(self.rewards)
-            log = "{:15d}{:15.5f}{:15d}{}".format(self.total_steps, eprew, done, info)
-            epinfo = {"steps-reward-terminal-info": log}
+            line = "{:15d}{:15.5f}{:15d}{}".format(self.total_steps, eprew, done, info)
+            epinfo = {"steps-reward-terminal-info": line}
             epinfo.update(self.current_reset_info)
-            if self.logger and self.test:
+            log_ok = (self.test and (self.report=='test' or self.report=='all')) or \
+                     (not self.test and (self.report=='learn' or self.report=='all'))
+            if self.logger and log_ok:
                 self.logger.writerow(epinfo)
                 self.f.flush()
             self.episode_rewards.append(eprew)
@@ -56,7 +60,7 @@ class MyMonitor(Monitor):
         return (ob, rew, done, info)
     
     # own
-    def set_role(self, test=False):
+    def set_test(self, test=False):
         self.test = test
         self.env.set_role(self.test)
         

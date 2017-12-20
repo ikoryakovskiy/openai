@@ -22,13 +22,15 @@ import gym
 import tensorflow as tf
 from mpi4py import MPI
 
-def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, architecture, **kwargs):
-    
-    output = kwargs.get('output',"default")
-    with open("{}.yaml".format(output), 'w', encoding='utf8') as file:
+
+def cfg_run(**kwargs): 
+    with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
         yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
     del kwargs['cores']
-    
+    run(**kwargs)
+
+def run(cfg, seed, noise_type, layer_norm, evaluation, architecture, **kwargs):    
+   
     if MPI.COMM_WORLD.Get_rank() == 0:
         dir_path = os.path.dirname(os.path.realpath(__file__))
         logger.configure(dir_path, ['stdout'])
@@ -41,7 +43,7 @@ def run(cfg, eval_cfg, seed, noise_type, layer_norm, evaluation, architecture, *
     # Create envs.
     env = GRLEnv(cfg)
     gym.logger.setLevel(logging.WARN)
-    env = MyMonitor(env, os.path.join(logger.get_dir(), output))
+    env = MyMonitor(env, os.path.join(logger.get_dir(), kwargs['output']))
 
     # Parse noise_type
     action_noise = None
@@ -92,7 +94,6 @@ def parse_args():
 
     parser.add_argument('--cores', type=int, default=1)
     parser.add_argument('--cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
-    parser.add_argument('--eval-cfg', type=str, default='cfg/rbdl_py_balancing.yaml')
     parser.add_argument('--architecture', type=str, default='Divyam')
     parser.add_argument('--tau', type=float, default=0.001)
     boolean_flag(parser, 'render-eval', default=False)
@@ -113,9 +114,9 @@ def parse_args():
     parser.add_argument('--nb-train-steps', type=int, default=1)  # per epoch cycle and MPI worker
     parser.add_argument('--test-interval', type=int, default=10)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
-    parser.add_argument('--nb-timesteps', type=int, default=1000)
+    parser.add_argument('--num-timesteps', type=int, default=1000)
     boolean_flag(parser, 'evaluation', default=True)
-    parser.add_argument('--output', type=str, default='')
+    parser.add_argument('--output', type=str, default='default')
     parser.add_argument('--load-file', type=str, default='')
     parser.add_argument('--save', type=bool, default=False)
     args = parser.parse_args()
@@ -127,4 +128,4 @@ if __name__ == '__main__':
     args = parse_args()
     
     # Run actual script.
-    run(**args)
+    cfg_run(**args)
