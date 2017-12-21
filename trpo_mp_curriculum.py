@@ -62,7 +62,7 @@ def main():
 
     L = L1+L2
     random.shuffle(L)
-    #do_multiprocessing_pool(arg_cores, L)
+    do_multiprocessing_pool(arg_cores, L)
 
 
 ######################################################################################
