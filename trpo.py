@@ -15,7 +15,7 @@ from baselines.trpo_mpi import trpo_mpi
 import baselines.common.tf_util as U
 from my_monitor import MyMonitor
 
-def cfg_run(**kwargs): 
+def cfg_run(**kwargs):
     with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
         yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
     del kwargs['cores']
@@ -24,14 +24,14 @@ def cfg_run(**kwargs):
 def run(cfg, num_timesteps, seed, hid_size, **kwargs):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     logger.configure(dir_path, ['stdout'])
-    
+
     sess = U.single_threaded_session()
     sess.__enter__()
-    
+
     rank = MPI.COMM_WORLD.Get_rank()
     if rank != 0:
         logger.set_level(logger.DISABLED)
-        
+
     workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
     set_global_seeds(workerseed)
     env = GRLEnv(cfg)
@@ -47,7 +47,7 @@ def run(cfg, num_timesteps, seed, hid_size, **kwargs):
     else:
         trpo_mpi.learn(sess, env, policy_fn, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, cg_damping=0.1,
             max_timesteps=num_timesteps, gamma=0.99, lam=0.98, vf_iters=5, vf_stepsize=1e-3, **kwargs)
-            
+
     env.close()
 
 def parse_args():

@@ -56,15 +56,12 @@ RUN pip3 --no-cache-dir install \
         joblib \
         zmq \
         dill \
-        tensorflow-gpu \
+        tensorflow \
         azure \
         progressbar2 \
         mpi4py \
         tflearn \
         pyyaml
-
-RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 # Install OpenAI Gym
 #RUN git clone https://github.com/openai/gym.git \
@@ -74,7 +71,11 @@ RUN ln -s /usr/bin/pip3 /usr/bin/pip
 #    pip install -e '.[all]'
 
 # Install OpenAI Baselines
-RUN git clone https://github.com/openai/baselines.git \
+#RUN git clone https://github.com/openai/baselines.git \
+#    && cd baselines \
+#    && pip3 install -e .
+ADD https://api.github.com/repos/ikoryakovskiy/baselines/git/refs/heads/master version.json
+RUN git clone https://github.com/ikoryakovskiy/baselines.git \
     && cd baselines \
     && pip3 install -e .
 
