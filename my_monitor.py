@@ -62,7 +62,7 @@ class MyMonitor(Monitor):
     # own
     def set_test(self, test=False):
         self.test = test
-        self.env.set_role(self.test)
+        self.env.set_test(self.test)
         
     def _dict_to_string(self, rowdict):
         return (rowdict.get(key, self.restval) for key in self.fieldnames)

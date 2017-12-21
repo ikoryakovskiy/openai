@@ -5,8 +5,9 @@ Created on Fri Dec 15 14:14:17 2017
 
 @author: ivan
 """
-from trpo import parse_args, cfg_run
+from ppo1 import parse_args, cfg_run
 
+'''
 args = parse_args()
 
 task = 'walking'
@@ -16,15 +17,15 @@ args['cfg'] = 'cfg/rbdl_py_{}_inf.yaml'.format(task)
 #args['architecture'] = 'Divyam'
 args['num_timesteps'] = 1000
 args['evaluation'] = False
-args['output'] = 'trpo-rbdl_py_{}_inf'.format(task)
+args['output'] = 'ppo1-rbdl_py_{}_inf'.format(task)
 args['load_file'] = ''
 
-''' 
-
-import yaml
-with open('tmp/trpo-cfg_rbdl_py_walking_inf-6400000-100000000-mp0.yaml', 'r') as file:
-    args = yaml.load(file)
+    
 '''
+import yaml
+with open('tmp/ppo1-cfg_rbdl_py_balancing_inf-102400000-20000000-mp0.yaml', 'r') as file:
+    args = yaml.load(file)
+
 
 # Run actual script.
 args['save'] = True

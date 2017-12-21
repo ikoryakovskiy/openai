@@ -5,7 +5,7 @@ Created on Fri Dec 15 14:14:17 2017
 
 @author: ivan
 """
-from trpo import parse_args, cfg_run
+from ppo1 import parse_args, cfg_run
 
 args = parse_args()
 
@@ -14,8 +14,8 @@ task = 'walking'
 
 args['cfg'] = 'cfg/rbdl_py_{}_inf_play.yaml'.format(task)
 args['evaluation'] = True
-args['output'] = 'trpo-rbdl_py_{}_play'.format(task)
-args['load_file'] = 'trpo-rbdl_py_{}_inf'.format(task)
+args['output'] = 'ppo1-rbdl_py_{}_play'.format(task)
+args['load_file'] = 'ppo1-rbdl_py_{}_inf'.format(task)
 
     
 '''

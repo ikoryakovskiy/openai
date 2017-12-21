@@ -23,7 +23,7 @@ def cfg_run(**kwargs):
 
 def run(cfg, num_timesteps, seed, hid_size, **kwargs):
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    logger.configure(dir_path, ['stdout', 'log'])
+    logger.configure(dir_path, ['stdout'])
     
     sess = U.single_threaded_session()
     sess.__enter__()

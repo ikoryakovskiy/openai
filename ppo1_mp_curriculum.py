@@ -8,7 +8,7 @@ import collections
 import itertools
 import signal
 import random
-from trpo import parse_args, cfg_run
+from ppo1 import parse_args, cfg_run
 import yaml
 import io
 
@@ -33,14 +33,14 @@ def main():
     
     # Parameters
     runs = range(10)
-    hid_size = [32, 64]
+    timesteps_per_actorbatch = [1024, 2048]
 
-    alg = 'trpo'
+    alg = 'ppo1'
     
     ###
     num_timesteps = [200]
     options = []
-    for r in itertools.product(hid_size, num_timesteps, runs): options.append(r)
+    for r in itertools.product(timesteps_per_actorbatch, num_timesteps, runs): options.append(r)
     options = [flatten(tupl) for tupl in options]
 
     configs = [
@@ -52,7 +52,7 @@ def main():
     ###
     num_timesteps = [1000]
     options = []
-    for r in itertools.product(hid_size, num_timesteps, runs): options.append(r)
+    for r in itertools.product(timesteps_per_actorbatch, num_timesteps, runs): options.append(r)
     options = [flatten(tupl) for tupl in options]
 
     configs = [
@@ -88,7 +88,7 @@ def rl_run_zero_shot(list_of_cfgs, alg, args, options):
             list_of_new_cfgs.append( "{}/{}-{}-{}.yaml".format(loc, alg, fname, str_o) )
 
             args['cfg'] = cfg
-            args['hid_size'] = o[0]
+            args['timesteps_per_actorbatch'] = o[0]
             args['num_timesteps'] = o[1]*1000
             args['output'] = "{}-{}-{}".format(alg, fname, str_o)
             args['save'] = True
