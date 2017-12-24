@@ -8,7 +8,7 @@ from my_monitor import MyMonitor
 import os.path as osp
 from baselines.ppo1 import mlp_policy, pposgd_simple
 
-def cfg_run(**kwargs): 
+def cfg_run(**kwargs):
     with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
         yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
     del kwargs['cores']
@@ -17,11 +17,11 @@ def cfg_run(**kwargs):
 def run(cfg, num_timesteps, seed, timesteps_per_actorbatch, **kwargs):
     dir_path = osp.dirname(osp.realpath(__file__))
     logger.configure(dir_path, ['stdout'])
-    
+
     #U.make_session(num_cpu=1).__enter__()
     sess = U.single_threaded_session()
     sess.__enter__()
-    
+
     set_global_seeds(seed)
     env = GRLEnv(cfg)
     def policy_fn(name, ob_space, ac_space):
@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     parser.add_argument('--timesteps-per-actorbatch', type=int, default=int(2048))
-    parser.add_argument('--evaluation', default=False)
+    parser.add_argument('--evaluation', type=bool, default=False)
     parser.add_argument('--output', type=str, default='default')
     parser.add_argument('--load-file', type=str, default='')
     parser.add_argument('--save', type=bool, default=False)

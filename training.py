@@ -36,13 +36,16 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
         saver = tf.train.Saver()
     else:
         saver = None
-            
+
     trial_return_history = deque(maxlen=100)
     eval_trial_return_history = deque(maxlen=100)
     with U.single_threaded_session() as sess:
         # Prepare everything.
         agent.initialize(sess)
         sess.graph.finalize()
+
+        #dir_path = os.path.dirname(os.path.realpath(__file__))
+        #tf.summary.FileWriter(dir_path, sess.graph)
 
         trial = 0
         ts = 0
@@ -62,7 +65,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
 
         while True:
             test = (test_interval >= 0 and trial%(test_interval+1) == test_interval)
-            
+
             if not test:
                 # Perform rollout.
                 env.set_test(test=False)
@@ -75,7 +78,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                     # Predict next action.
                     action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
                     assert action.shape == env.action_space.shape
-    
+
                     # Execute next action.
                     if rank == 0 and render:
                         env.render()
@@ -86,13 +89,13 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                         env.render()
                     trial_return += r
                     trial_step += 1
-    
+
                     # Book-keeping.
                     actions.append(action)
                     qs.append(q)
                     agent.store_transition(obs, action, r, new_obs, done == 2) # terminal indicator is 2
                     obs = new_obs
-    
+
                     # Train.
                     if memory.nb_entries >= batch_size:
                         for t_train in range(nb_train_steps):
@@ -100,7 +103,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                             if trial % param_noise_adaption_interval == 0:
                                 distance = agent.adapt_param_noise()
                                 train_adaptive_distances.append(distance)
-          
+
                             cl, al = agent.train()
                             train_critic_losses.append(cl)
                             train_actor_losses.append(al)
@@ -116,7 +119,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                 eval_trial_return = 0.
                 eval_trial_steps = 0
                 if evaluation is not None:
-                    env.set_role(test=True)
+                    env.set_test(test=True)
                     eval_obs = env.reset()
                     agent.reset()
                     eval_done = 0
@@ -129,7 +132,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                         eval_trial_steps += 1
                     # Episode done.
                     eval_trial_return_history.append(eval_trial_return)
-        
+
                 # Log stats.
                 duration = time.time() - start_time
                 combined_stats = {}
@@ -138,7 +141,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                     stats = agent.get_stats()
                     for key in sorted(stats.keys()):
                         combined_stats[key] = mpi_mean(stats[key])
-        
+
                     # Rollout statistics.
                     combined_stats['rollout/Q_mean'] = mpi_mean(qs)
                     combined_stats['rollout/actions_mean'] = mpi_mean(actions)
@@ -146,25 +149,25 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                     combined_stats['rollout/trial_steps'] = mpi_mean(trial_steps)
                     combined_stats['rollout/return'] = mpi_mean(trial_returns)
                     combined_stats['rollout/return_history'] = mpi_mean(trial_return_history)
-            
+
                     # Train statistics.
                     combined_stats['train/loss_actor'] = mpi_mean(train_actor_losses)
                     combined_stats['train/loss_critic'] = mpi_mean(train_critic_losses)
                     combined_stats['train/param_noise_distance'] = mpi_mean(train_adaptive_distances)
-        
+
                 # Evaluation statistics.
                 if evaluation is not None:
                     combined_stats['eval/Q'] = mpi_mean(eval_q)
                     combined_stats['eval/return'] = eval_trial_return
                     combined_stats['eval/return_history'] = mpi_mean(eval_trial_return_history)
                     combined_stats['eval/steps'] = eval_trial_steps
-        
+
                 # Total statistics.
                 combined_stats['total/duration'] = mpi_mean(duration)
                 combined_stats['total/steps_per_second'] = mpi_mean(float(ts) / float(duration))
                 combined_stats['total/trials'] = trial
                 combined_stats['total/steps'] = ts
-                       
+
                 for key in sorted(combined_stats.keys()):
                     logger.record_tabular(key, combined_stats[key])
                 logger.dump_tabular()
@@ -177,7 +180,7 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                     if evaluation and hasattr(env, 'get_state'):
                         with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                             pickle.dump(env.get_state(), f)
-                            
+
                 # Reset statistics.
                 trial_returns = []
                 trial_steps = []
@@ -187,15 +190,15 @@ def train(env, num_timesteps, nb_trials, render_eval, reward_scale, render, para
                 train_critic_losses = []
                 train_adaptive_distances = []
                 # End of evaluate and log statistics
-                
+
             # Check if this is the last trial
             trial += 1
             if nb_trials and trial >= nb_trials:
                 break
             if num_timesteps and ts >= num_timesteps:
                 break
-               
+
         # Saving policy and value function
         if save and saver and output != '':
             saver.save(sess, './%s' % output)
-        
+

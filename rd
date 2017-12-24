@@ -5,6 +5,6 @@ mkdir -p logs
 ssh ikoryakovskiy@calcutron "cd openai && tar --use-compress-program=pbzip2 --exclude CMake*.txt -cf results.tar.bz2 *.csv tmp/*.yaml"
 scp ikoryakovskiy@calcutron:~/openai/results.tar.bz2 ./
 tar --use-compress-program=pbzip2 -xvf results.tar.bz2 -C ./logs/
-#rm ./results.tar.bz2
+rm ./results.tar.bz2
 
 

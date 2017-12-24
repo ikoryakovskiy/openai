@@ -15,6 +15,12 @@ from baselines.trpo_mpi import trpo_mpi
 import baselines.common.tf_util as U
 from my_monitor import MyMonitor
 
+def boolean_flag(parser, name, default=False, help=None):
+    """Add a boolean flag to argparse parser."""
+    dest = name.replace('-', '_')
+    parser.add_argument("--" + name, action="store_true", default=default, dest=dest, help=help)
+    parser.add_argument("--no-" + name, action="store_false", dest=dest)
+
 def cfg_run(**kwargs):
     with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
         yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
@@ -42,6 +48,8 @@ def run(cfg, num_timesteps, seed, hid_size, **kwargs):
     env.seed(workerseed)
     gym.logger.setLevel(logging.WARN)
 
+    print("Evaluation: {}".format(type(kwargs['evaluation'])))
+
     if kwargs['evaluation']:
         trpo_mpi.play(sess, env, policy_fn, timesteps_per_batch=1024, load_file=kwargs['load_file'])
     else:
@@ -58,10 +66,10 @@ def parse_args():
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--hid-size', help='Number of neurons in single layer', type=int, default=32)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
-    parser.add_argument('--evaluation', default=False)
+    boolean_flag(parser, 'evaluation', default=False)
     parser.add_argument('--output', type=str, default='default')
     parser.add_argument('--load-file', type=str, default='')
-    parser.add_argument('--save', type=bool, default=False)
+    boolean_flag(parser, 'save', default=False)
     args = parser.parse_args()
     args = vars(args)
     return args

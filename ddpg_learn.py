@@ -14,15 +14,15 @@ task = 'walking'
 
 args['cfg'] = 'cfg/rbdl_py_{}.yaml'.format(task)
 args['architecture'] = 'Divyam'
-args['num_timesteps'] = 300000
+args['num_timesteps'] = 1000
 args['test_interval'] = 30
 args['noise_type'] = 'ou_0.15_0.20'
 args['critic_l2_reg']= 0.001
-args['normalize_observations'] = True
-args['normalize_returns'] = True
+args['tau']= 0.001
+args['normalize_observations'] = False
+args['normalize_returns'] = False
 args['layer_norm'] = True
 args['output'] = 'rbdl_py_{}'.format(task)
-args['save'] = True
 
 
 '''
@@ -32,4 +32,5 @@ with open('tmp/ddpg-cfg_rbdl_py_balancing-10000000-000000-000000-000000-000000-0
 '''
 
 # Run actual script.
+args['save'] = True
 cfg_run(**args)
