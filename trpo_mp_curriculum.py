@@ -8,7 +8,7 @@ import collections
 import itertools
 import signal
 import random
-from trpo import parse_args, cfg_run
+from trpo import parse_args
 import yaml
 import io
 
@@ -62,7 +62,7 @@ def main():
 
     L = L1+L2
     random.shuffle(L)
-    #do_multiprocessing_pool(arg_cores, L)
+    do_multiprocessing_pool(arg_cores, L)
 
 
 ######################################################################################

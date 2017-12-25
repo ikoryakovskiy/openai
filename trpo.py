@@ -41,14 +41,13 @@ def run(cfg, num_timesteps, seed, hid_size, **kwargs):
     workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
     set_global_seeds(workerseed)
     env = GRLEnv(cfg)
+    env.set_test(False)
     def policy_fn(name, ob_space, ac_space):
         return MlpPolicy(name=name, ob_space=env.observation_space, ac_space=env.action_space,
             hid_size=hid_size, num_hid_layers=2)
     env = MyMonitor(env, osp.join(logger.get_dir(), kwargs['output']), report='learn')
     env.seed(workerseed)
     gym.logger.setLevel(logging.WARN)
-
-    print("Evaluation: {}".format(type(kwargs['evaluation'])))
 
     if kwargs['evaluation']:
         trpo_mpi.play(sess, env, policy_fn, timesteps_per_batch=1024, load_file=kwargs['load_file'])

@@ -8,6 +8,12 @@ from my_monitor import MyMonitor
 import os.path as osp
 from baselines.ppo1 import mlp_policy, pposgd_simple
 
+def boolean_flag(parser, name, default=False, help=None):
+    """Add a boolean flag to argparse parser."""
+    dest = name.replace('-', '_')
+    parser.add_argument("--" + name, action="store_true", default=default, dest=dest, help=help)
+    parser.add_argument("--no-" + name, action="store_false", dest=dest)
+
 def cfg_run(**kwargs):
     with open("{}.yaml".format(kwargs['output']), 'w', encoding='utf8') as file:
         yaml.dump(kwargs, file, default_flow_style=False, allow_unicode=True)
@@ -24,6 +30,7 @@ def run(cfg, num_timesteps, seed, timesteps_per_actorbatch, **kwargs):
 
     set_global_seeds(seed)
     env = GRLEnv(cfg)
+    env.set_test(False)
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
             hid_size=64, num_hid_layers=2)
@@ -50,10 +57,10 @@ def parse_args():
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     parser.add_argument('--timesteps-per-actorbatch', type=int, default=int(2048))
-    parser.add_argument('--evaluation', type=bool, default=False)
+    boolean_flag(parser, 'evaluation', default=False)
     parser.add_argument('--output', type=str, default='default')
     parser.add_argument('--load-file', type=str, default='')
-    parser.add_argument('--save', type=bool, default=False)
+    boolean_flag(parser, 'save', default=False)
     args = parser.parse_args()
     args = vars(args)
     return args

@@ -8,7 +8,7 @@ import collections
 import itertools
 import signal
 import random
-from ppo1 import parse_args, cfg_run
+from ppo1 import parse_args
 import yaml
 import io
 
@@ -24,19 +24,19 @@ def flatten(x):
 
 def main():
     args = parse_args()
-    
+
     if args['cores']:
         arg_cores = min(multiprocessing.cpu_count(), args['cores'])
     else:
         arg_cores = min(multiprocessing.cpu_count(), 32)
     print('Using {} cores.'.format(arg_cores))
-    
+
     # Parameters
     runs = range(10)
     timesteps_per_actorbatch = [1024, 2048]
 
     alg = 'ppo1'
-    
+
     ###
     num_timesteps = [200]
     options = []
@@ -92,7 +92,7 @@ def rl_run_zero_shot(list_of_cfgs, alg, args, options):
             args['num_timesteps'] = o[1]*1000
             args['output'] = "{}-{}-{}".format(alg, fname, str_o)
             args['save'] = True
-                
+
             with io.open(list_of_new_cfgs[-1], 'w', encoding='utf8') as file:
                 yaml.dump(args, file, default_flow_style=False, allow_unicode=True)
 
@@ -114,8 +114,9 @@ def mp_run(cfg):
     print('wait finished {0}'.format(wait))
     # Run the experiment
     with open(cfg, 'r') as file:
-        args = yaml.load(file)
-    cfg_run(**args)
+        di = yaml.load(file)
+    args = dict_to_args(di)
+    os.system("python3 ppo1.py {}".format(args))
 
 
 ######################################################################################
@@ -143,9 +144,24 @@ def do_multiprocessing_pool(arg_cores, list_of_new_cfgs):
     else:
         pool.close()
     pool.join()
+
+
 ######################################################################################
+def dict_to_args(di):
+    args = ""
+    for key in di:
+        if not di[key] == '':
+            new_key = key.replace('_', '-')
+            if type(di[key]) is not bool:
+                args += '--' + new_key + '=' + str(di[key]) + ' '
+            elif di[key] == True:
+                args += '--' + new_key + ' '
+            else:
+                args += '--no-' + new_key + ' '
+    return args
 
 
+######################################################################################
 if __name__ == "__main__":
     main()
 
